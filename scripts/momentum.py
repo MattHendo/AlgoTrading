@@ -1,4 +1,1 @@
-
 #momentum strategy
-
-#slfs

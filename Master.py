@@ -1,3 +1,2 @@
 #this is the file we will use to run the rest of the project
-
-#lsjf
+#running strategies, backtesting them, and comparing performance

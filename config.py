@@ -10,5 +10,3 @@ ALPACA_CONFIG = {
     "paper": "True"
 
 }
-
-#slfs
