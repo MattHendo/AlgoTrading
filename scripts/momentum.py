@@ -1,5 +1,6 @@
 #momentum strategy
 #this is an example from the youtube video of a momentum strategy
+#alex
 from config import ALPACA_CONFIG
 from lumibot.brokers import Alpaca
 from lumibot.strategies import Strategy
