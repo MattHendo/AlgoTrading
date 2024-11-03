@@ -1,3 +1,9 @@
+#many bugs still working on this one
+
+'''
+from lumibot.backtesting import YahooDataBacktesting
+from datetime import datetime
+
 from config import ALPACA_CONFIG
 from lumibot.brokers import Alpaca
 from lumibot.strategies import Strategy
@@ -37,8 +43,27 @@ class ArbitrageStrategy(Strategy):
                 self.alpaca_api.submit_order(symbol=self.symbol2, qty=self.position_size, side='buy', type='market', time_in_force='gtc')
 
 if __name__ == "__main__":
-    broker = Alpaca(ALPACA_CONFIG)
-    strategy = ArbitrageStrategy(broker=broker)
-    trader = Trader()
-    trader.add_strategy(strategy)
-    trader.run_all()
+    trade = False
+    if trade:
+        broker = Alpaca(ALPACA_CONFIG)
+        strategy = ArbitrageStrategy(broker=broker)
+        trader = Trader()
+        trader.add_strategy(strategy)
+        trader.run_all()
+    else:
+        start=datetime(2022,1,1)
+        end=datetime(2022,1,3)
+        ArbitrageStrategy.backtest(
+            YahooDataBacktesting,
+            start,
+            end
+        )
+'''
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-#config including api keys
+#config including api keys for brokerage api
 
 API_KEY="PK07S2OKJYRIDKZQRRW5"
 SECRET_KEY ="3umNwvhcP68zjgFGrr7OcWsLeZkTLCdP5cbAiJkZ"
