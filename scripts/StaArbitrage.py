@@ -90,4 +90,5 @@ LOWER stock has fallen too much relative to the HIGHER stock.
 HIGHER stock (stock1): will likely RISE as returns to its mean.
 LOWER stock (stock2):will likely FALL as returns to its mean
 
-Example:
+'''
+
