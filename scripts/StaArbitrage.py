@@ -73,3 +73,21 @@ strategy.run_backtest(YahooDataBacktesting, backtesting_start, backtesting_end)
 trader.add_strategy(strategy)
 trader.run_all()
 
+'''
+we are comparing two stocks, then calulating the z-score: (spread − spread mean)/(std) 
+In this StatArbBot strategy Z-score threshold is set to +-2 meaning that we only need to take action 
+if a pair of stockshave a difference of more than 2 standard deviations from its historical mean. 
+
+When Z-score is grater than 2:
+HIGHER stock in the has risen too much compared to the LOWER stock
+
+What should we do:
+HIGHER stock (stock1) will likely FALL as returns to its mean (basicaly same idea as mean reversion).
+LOWER stock (stock2) will likely RISE as returns to its mean
+
+When Z-score is less than -2:
+LOWER stock has fallen too much relative to the HIGHER stock.
+HIGHER stock (stock1): will likely RISE as returns to its mean.
+LOWER stock (stock2):will likely FALL as returns to its mean
+
+Example:
