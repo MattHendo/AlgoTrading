@@ -1,0 +1,44 @@
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Fetch S&P 500 Futures data
+ticker = 'ES=F'
+data = yf.download(ticker, start="2015-01-01", end="2024-11-05")
+
+# Calculate moving averages
+def calculate_moving_averages(data, short_window=50, long_window=200):
+    data['SMA_short'] = data['Close'].rolling(window=short_window).mean()
+    data['SMA_long'] = data['Close'].rolling(window=long_window).mean()
+    return data
+
+# Generate buy and sell signals
+def generate_signals(data):
+    data['Signal'] = 0
+    data['Signal'][data['SMA_short'] > data['SMA_long']] = 1  # Buy Signal
+    data['Signal'][data['SMA_short'] < data['SMA_long']] = -1  # Sell Signal
+    data['Position'] = data['Signal'].shift()
+    return data
+
+# Backtest the strategy
+def backtest_strategy(data):
+    data['Market_Return'] = data['Close'].pct_change()
+    data['Strategy_Return'] = data['Market_Return'] * data['Position']
+    data['Cumulative_Strategy_Return'] = (1 + data['Strategy_Return']).cumprod()
+    return data
+
+# Plot strategy vs market
+def plot_results(data):
+    plt.figure(figsize=(12, 6))
+    plt.plot(data.index, data['Cumulative_Strategy_Return'], label='Strategy Returns')
+    plt.plot(data.index, (1 + data['Market_Return']).cumprod(), label='Market Returns')
+    plt.title(f'Trend-Following Strategy on {ticker}')
+    plt.legend()
+    plt.show()
+
+# Run the entire process
+data = calculate_moving_averages(data)
+data = generate_signals(data)
+data = backtest_strategy(data)
+plot_results(data)
