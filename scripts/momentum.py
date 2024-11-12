@@ -1,5 +1,3 @@
-#momentum strategy (70% annual returns)
-
 from config import ALPACA_CONFIG
 from datetime import datetime
 from lumibot.backtesting import YahooDataBacktesting
@@ -58,7 +56,7 @@ strategy = MomentumStrategy(broker=broker)
 
 # Define backtesting parameters
 backtesting_start = datetime(2020, 1, 1)
-backtesting_end = datetime(2020, 12, 31)
+backtesting_end = datetime(2024, 1, 1)
 strategy.run_backtest(
     YahooDataBacktesting,
     backtesting_start,
@@ -69,70 +67,46 @@ trader.add_strategy(strategy)
 trader.run_all()
 
 
-#momentum example for youtube series
 '''
-from lumibot.backtesting import YahooDataBacktesting
-from datetime import datetime
-from config import ALPACA_CONFIG
-from lumibot.brokers import Alpaca
-from lumibot.strategies import Strategy
-from lumibot.traders import Trader
+Momentum Based Strategy using Lumibot:
 
+The primary aim of this strategy is to invest in stocks
+that demonstrate the highest momentum, under the assumption
+that these stocks will continue to perform well in the short term.
+To achieve this, the strategy ranks stocks based on their momentum 
+over a specified lookback period and allocates a portion of available 
+capital to the top performing stocks.
 
-class SwingHigh(Strategy):
-    data = []
-    order_number = 0
-    entry_price = 0
+The MomentumStrategy class is a subclass of Strategy which includes 
+specific parameters for stock selection and momentum calculation.
+The parameters dictionary contains configuration items like the 
+list of stock symbols to monitor, the number of top stocks to 
+invest in, the lookback period for momentum calculations, and 
+fraction of cash to invest per stock. The initialize method sets the 
+trading interation frequency to 180 minutes, meaning the strategy 
+will assess and potentially trade a three-hour intervals. 
 
-    def initialize(self):
-        self.sleeptime = "30S"
+Within the on_trading_iteration method, the strategy first calculates 
+momentum scores for each stock by comparing the current price to the 
+price at the start of the lookback period. These scores are computed by the 
+calculate_momentum() method, which retrieves historical prices and calculates the 
+percentage change over the specified lookback period. After calculating momentum
+for each stock, the strategy sorts them to indentify the top n stocks with 
+the highest momentum scores. Once it has identified these top stocks, it 
+clears all previous positions by calling self.sell_all() to reset holdings.
 
-    def on_trading_iteration(self):
-        symbol = "TSLA"
-        self.data.append(self.get_last_price(symbol))
+The strategy then divides the cash allocation (20% of total cash per stock
+as defined in cash_to_invest among the top stocks. For each selected stock, 
+it determines the quantity of shares to purchase based on the latest available 
+price. The self.create_order method creates a buy order for each stock, and 
+self.submit_order executes the purchase if theres is sufficient cash and the 
+price is greater than zero. This process repeats every trading iteration to
+adjust the portfolio based on updated momentum rankings. 
 
-        self.log_message(f"Position: {self.get_position(symbol)}, Data: {self.data}")
-
-        if len(self.data) > 3:
-            temp = self.data[-3:]
-            self.log_message(f"Checking for entry condition with prices: {temp}")
-            if temp[-1] > temp[1] > temp[0]:
-                self.log_message(f"Last 3 prices (momentum detected): {temp}")
-                order = self.create_order(symbol, quantity=10, side="buy")
-                self.submit_order(order)
-                self.order_number += 1
-                if self.order_number == 1:
-                    self.entry_price = temp[-1]
-                    self.log_message(f"Entry price set to: {self.entry_price}")
-
-            if self.get_position(symbol) and self.data[-1] < self.entry_price * 0.995:
-                self.log_message(f"Stop-loss triggered at price: {self.data[-1]}")
-                self.sell_all()
-                self.order_number = 0
-            elif self.get_position(symbol) and self.data[-1] >= self.entry_price * 1.015:
-                self.log_message(f"Take-profit triggered at price: {self.data[-1]}")
-                self.sell_all()
-                self.order_number = 0
-
-    def before_market_closes(self):
-        self.sell_all()
-
-
-if __name__ == "__main__":
-    trade = False
-    if trade:
-        broker = Alpaca(ALPACA_CONFIG)
-        strategy = SwingHigh(broker=broker)
-        trader = Trader()
-        trader.add_strategy(strategy)
-        trader.run_all()
-    else:
-        start=datetime(2022,1,1)
-        end=datetime(2022,2,1)
-        SwingHigh.backtest(
-            YahooDataBacktesting,
-            start,
-            end
-        )
+Finally, the script configures a Trader and an Alpaca broker instance,
+linking the strategy to both. A backtesting period is defined, and 
+the strategy runs through this timeframe using historical data from Yahoo
+Finance. After the backtest is complete, A chart comparing the performance 
+of the strategy vs the performance of SPY and a tear sheet with relevant 
+indicators is created and displayed in the browser as an html. 
 '''
-
