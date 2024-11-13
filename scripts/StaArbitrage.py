@@ -1,15 +1,18 @@
-from config import ALPACA_CONFIG
 from datetime import datetime
 from lumibot.backtesting import YahooDataBacktesting
 from lumibot.brokers import Alpaca
 from lumibot.strategies.strategy import Strategy
 from lumibot.traders import Trader
-import yfinance as yf
 import pandas as pd
-import numpy as np
 
-# Initialize the Alpaca broker with ALPACA_CONFIG from config
-broker = Alpaca(ALPACA_CONFIG)
+API_KEY = "PK2BPY2BJH8UJ9CB3PJB"
+SECRET_KEY = "WEiBPpmuS1hT7BtGFc7FQSm5YMcOLPA15KPTbgcq"
+
+ALPACA_CONFIG = {
+    "API_KEY": API_KEY,
+    "API_SECRET": SECRET_KEY,
+    "paper": "True"  
+}
 
 class StatArbBot(Strategy):
     parameters = {
@@ -20,11 +23,23 @@ class StatArbBot(Strategy):
     }
 
     def initialize(self):
-        self.sleeptime = "180M"  # Frequency of trading iterations
+        self.sleeptime = "180M"  
 
     def get_historical_data(self):
-        data = yf.download(self.parameters["symbols"], start="2022-01-01", end=datetime.now().strftime("%Y-%m-%d"))
-        return data["Close"]
+        """Fetch historical data for each symbol and ensure consistent date ranges."""
+        symbols = self.parameters["symbols"]
+        lookback_window = self.parameters["lookback_window"]
+
+       
+        historical_data = {}
+        for symbol in symbols:
+            prices = self.get_historical_prices(symbol, length=lookback_window, timestep='day').df['close']
+            historical_data[symbol] = prices
+
+        
+        data_df = pd.DataFrame(historical_data)
+        data_df.dropna(inplace=True)  
+        return data_df
 
     def calculate_spread(self, stock1, stock2):
         price1 = self.data[stock1]
@@ -38,8 +53,23 @@ class StatArbBot(Strategy):
         z_score = (spread - spread_mean) / spread_std
         return z_score
 
+    def order_target_percent(self, symbol, percent):
+        """Custom method to order a target percent of the portfolio for a given symbol."""
+        target_cash = percent * self.cash
+        latest_price = self.get_historical_prices(symbol, length=1).df['close'].iloc[-1]
+
+        
+        if latest_price > 0:  
+            quantity = int(target_cash // latest_price) 
+
+            if quantity > 0:
+                side = "buy" if percent > 0 else "sell"
+                order = self.create_order(symbol, quantity=abs(quantity), side=side)
+                self.submit_order(order)
+
     def on_trading_iteration(self):
-        self.data = self.get_historical_data()  # Refresh data on each iteration
+        self.data = self.get_historical_data()
+
         pairs = self.parameters["pairs"]
         z_threshold = self.parameters["z_score_threshold"]
 
@@ -64,14 +94,21 @@ class StatArbBot(Strategy):
 
 # Set up the strategy, broker, and trader
 trader = Trader()
+broker = Alpaca(ALPACA_CONFIG)
 strategy = StatArbBot(broker=broker)
 
-backtesting_start = datetime(2020, 1, 1)
-backtesting_end = datetime(2020, 12, 31)
+# Define backtesting parameters
+backtesting_start = datetime(2021, 1, 1)
+backtesting_end = datetime(2021, 12, 31)
+strategy.run_backtest(
+    YahooDataBacktesting,
+    backtesting_start,
+    backtesting_end
+)
 
-strategy.run_backtest(YahooDataBacktesting, backtesting_start, backtesting_end)
 trader.add_strategy(strategy)
 trader.run_all()
+
 
 '''
 we are comparing two stocks, then calulating the z-score: (spread − spread mean)/(std) 
