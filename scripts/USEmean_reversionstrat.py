@@ -6,6 +6,15 @@ from lumibot.strategies.strategy import Strategy
 from lumibot.traders import Trader
 from config import ALPACA_CONFIG
 
+API_KEY="PKK0JP0AA7PS0M1PS437"
+SECRET_KEY ="y8XKrt8IazYOyGjMPWY6tZmXkWZyfZUnG2JAxwPI"
+
+ALPACA_CONFIG = {
+    "API_KEY": API_KEY,
+    "API_SECRET": SECRET_KEY,
+    "paper": "True"  
+}
+
 class SMARsiStrategy(Strategy):
     parameters = {
         "symbol": "AAPL",

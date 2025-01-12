@@ -5,8 +5,8 @@ from lumibot.strategies.strategy import Strategy
 from lumibot.traders import Trader
 import pandas as pd
 
-API_KEY = "PK2BPY2BJH8UJ9CB3PJB"
-SECRET_KEY = "WEiBPpmuS1hT7BtGFc7FQSm5YMcOLPA15KPTbgcq"
+API_KEY="PKK0JP0AA7PS0M1PS437"
+SECRET_KEY ="y8XKrt8IazYOyGjMPWY6tZmXkWZyfZUnG2JAxwPI"
 
 ALPACA_CONFIG = {
     "API_KEY": API_KEY,
