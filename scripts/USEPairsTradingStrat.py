@@ -16,14 +16,16 @@ ALPACA_CONFIG = {
     
 class PairsTrading(Strategy):
     parameters = {
-        "symbol": "SPY",
-        "short_window": 50,
-        "long_window": 200,
-        "quantity": 1,
+        "symbols": ["XOM", "SHEL"],  # List of symbols for analysis
+        "lookback_window": 200,  # Number of days to look back for historical data
+        "short_window": 50,  # Short SMA window
+        "long_window": 200,  # Long SMA window
+        "quantity": 1000,  # Number of shares to trade
     }
 
     def initialize(self):
-        self.symbol = self.parameters["symbol"]
+        self.symbols = self.parameters["symbols"]
+        self.lookback_window = self.parameters["lookback_window"]
         self.short_window = self.parameters["short_window"]
         self.long_window = self.parameters["long_window"]
         self.quantity = self.parameters["quantity"]
@@ -31,10 +33,27 @@ class PairsTrading(Strategy):
         self.last_position = 0  # Tracks the last trading signal (0 = none, 1 = buy, -1 = sell)
         self.sleeptime = "1D"  # Adjust based on backtesting data frequency
 
+    def get_historical_data(self):
+        """Fetch historical data for each symbol and ensure consistent date ranges."""
+        symbols = self.parameters["symbols"]
+        lookback_window = self.parameters["lookback_window"]
+
+        historical_data = {}
+        for symbol in symbols:
+            prices = self.get_historical_prices(
+                symbol, length=lookback_window, timestep="day"
+            ).df["close"]
+            historical_data[symbol] = prices
+
+        # Combine into a DataFrame and drop rows with missing values
+        data_df = pd.DataFrame(historical_data)
+        data_df.dropna(inplace=True)
+        return data_df
+
     def on_trading_iteration(self):
         # Fetch historical data
-        historical_data = self.get_historical_data(self.symbol, "1d", "1y")
-        close_prices = historical_data["close"]
+        historical_data = self.get_historical_data()
+        close_prices = historical_data[self.symbols[0]]  # Use the first symbol (SPY)
 
         # Update data and calculate moving averages
         self.data = historical_data
@@ -47,7 +66,7 @@ class PairsTrading(Strategy):
             and self.last_position != 1
         ):
             # Buy Signal
-            order = self.create_order(self.symbol, self.quantity, "buy")
+            order = self.create_order(self.symbols[0], self.quantity, "buy")
             self.submit_order(order)
             self.last_position = 1
 
@@ -56,7 +75,7 @@ class PairsTrading(Strategy):
             and self.last_position != -1
         ):
             # Sell Signal
-            order = self.create_order(self.symbol, self.quantity, "sell")
+            order = self.create_order(self.symbols[0], self.quantity, "sell")
             self.submit_order(order)
             self.last_position = -1
 

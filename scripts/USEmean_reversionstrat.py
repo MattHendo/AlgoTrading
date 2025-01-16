@@ -1,94 +1,114 @@
-from datetime import datetime
-import pandas as pd
-from lumibot.backtesting import YahooDataBacktesting
 from lumibot.brokers import Alpaca
-from lumibot.strategies.strategy import Strategy
 from lumibot.traders import Trader
+from lumibot.strategies.strategy import Strategy
 from config import ALPACA_CONFIG
+import pandas_ta as ta
+import pandas as pd
+import math
 
-API_KEY="PKK0JP0AA7PS0M1PS437"
-SECRET_KEY ="y8XKrt8IazYOyGjMPWY6tZmXkWZyfZUnG2JAxwPI"
-
-ALPACA_CONFIG = {
-    "API_KEY": API_KEY,
-    "API_SECRET": SECRET_KEY,
-    "paper": "True"  
-}
-
-class SMARsiStrategy(Strategy):
+class RSISMAStrategy(Strategy):
+    # Define parameters for the strategy
     parameters = {
-        "symbol": "AAPL",
-        "sma_length": 200,
-        "rsi_length": 10,
-        "rsi_threshold": 30,  # Overbought/Oversold threshold
-        "quantity": 1
+        "symbol": "AAPL",  # Default symbol
+        "initial_investment": 100000,  # Starting investment amount
+        "rsi_length": 10,  # RSI calculation length
+        "sma_length": 50  # SMA calculation length
     }
 
     def initialize(self):
-        self.symbol = self.parameters["symbol"]
-        self.sma_length = self.parameters["sma_length"]
-        self.rsi_length = self.parameters["rsi_length"]
-        self.rsi_threshold = self.parameters["rsi_threshold"]
-        self.quantity = self.parameters["quantity"]
-        self.data = pd.DataFrame()  # To store historical data
-        self.sleeptime = "1H"  # Frequency of checks (hourly for this example)
+        # The amount of time between iterations
+        self.sleeptime = "1D"
+        self.in_position = False
+        self.equity = self.parameters["initial_investment"]
+        self.no_of_shares = 1
 
     def on_trading_iteration(self):
-        # Fetch historical data
-        historical_data = self.get_historical_data(self.symbol, "1min", "1d")
-        close_prices = historical_data["close"]
+        symbol = self.parameters["symbol"]
+        rsi_length = self.parameters["rsi_length"]
+        sma_length = self.parameters["sma_length"]
 
-        # Calculate indicators
-        self.data = historical_data
-        self.data["SMA"] = ta.sma(close_prices, length=self.sma_length)
-        self.data["RSI"] = ta.rsi(close_prices, length=self.rsi_length)
+        # Use the correct method to fetch historical prices
+        data = self.get_historical_prices(symbol, "day", 30)  # Fetching 100 days of daily data
+        if data.empty:
+            self.log_message("No data fetched for symbol, skipping iteration.", "error")
+            return
 
-        # Remove NaN values to avoid errors
-        self.data.dropna(inplace=True)
+        # Calculate SMA and RSI
+        data["sma"] = ta.sma(data["close"], length=sma_length)
+        data["rsi"] = ta.rsi(data["close"], length=rsi_length)
+
+        # Drop rows with NaN values
+        data = data.dropna()
 
         # Get the latest data point
-        latest = self.data.iloc[-1]
-        latest_price = latest["close"]
-        latest_sma = latest["SMA"]
-        latest_rsi = latest["RSI"]
+        latest_data = data.iloc[-1]
+        price = latest_data["close"]
+        sma = latest_data["sma"]
+        rsi = latest_data["rsi"]
+        self.log_message(f"Latest Price: {price}, SMA: {sma}, RSI: {rsi}")
 
-        # Generate buy/sell signals based on RSI and SMA
-        if latest_rsi < self.rsi_threshold and latest_price > latest_sma:
-            # Buy Signal
-            order = self.create_order(self.symbol, self.quantity, "buy")
-            self.submit_order(order)
-            self.log_message(f"BUY signal triggered at {latest_price}", "INFO")
+        # Implement buy logic
+        if rsi < 30 and price > sma and not self.in_position:
+            self.no_of_shares = math.floor(self.equity / price)
+            self.equity -= self.no_of_shares * price
+            self.in_position = True
+            self.log_message(f"BUY: {self.no_of_shares} shares of {symbol} at ${price}")
 
-        elif latest_rsi > 100 - self.rsi_threshold and latest_price < latest_sma:
-            # Sell Signal
-            order = self.create_order(self.symbol, self.quantity, "sell")
-            self.submit_order(order)
-            self.log_message(f"SELL signal triggered at {latest_price}", "INFO")
+            # Place buy order
+            self.create_order(symbol, self.no_of_shares, "buy")
+            self.submit_orders()
 
-# Set up the trader and backtest
+        # Implement sell logic
+        elif rsi > 70 and price < sma and self.in_position:
+            self.equity += self.no_of_shares * price
+            self.in_position = False
+            self.log_message(f"SELL: {self.no_of_shares} shares of {symbol} at ${price}")
+
+            # Place sell order
+            self.create_order(symbol, self.no_of_shares, "sell")
+            self.submit_orders()
+
+        # If still in position at the end, log and calculate final stats
+        if self.in_position:
+            self.equity += self.no_of_shares * price
+            self.in_position = False
+            self.log_message(f"Closing position: {self.no_of_shares} shares of {symbol} at ${price}")
+
+        # Calculate and log performance
+        earning = round(self.equity - self.parameters["initial_investment"], 2)
+        roi = round((earning / self.parameters["initial_investment"]) * 100, 2)
+        self.log_message(f"EARNING: ${earning}, ROI: {roi}%")
+
+
+# Set up the Trader, Broker, and Strategy
 trader = Trader()
 broker = Alpaca(ALPACA_CONFIG)
-strategy = SMARsiStrategy(
+
+# Initialize the strategy with Alpaca broker
+strategy = RSISMAStrategy(
     broker=broker,
     parameters={
         "symbol": "AAPL",
-        "sma_length": 200,
+        "initial_investment": 100000,
         "rsi_length": 10,
-        "rsi_threshold": 30,
-        "quantity": 1
+        "sma_length": 200
     }
 )
 
-backtesting_start = datetime(2023, 1, 1)
-backtesting_end = datetime(2023, 12, 31)
+# Run backtesting
+from datetime import datetime
+from lumibot.backtesting import YahooDataBacktesting
 
-# Run the backtest
+backtesting_start = datetime(2020, 1, 1)
+backtesting_end = datetime(2020, 12, 31)
+
 strategy.run_backtest(
     YahooDataBacktesting,
     backtesting_start,
-    backtesting_end
+    backtesting_end,
+    parameters={"symbol": "AAPL"}
 )
 
-# Add the strategy to the trader for live execution
+# Add the strategy to the trader and start live trading (optional)
 trader.add_strategy(strategy)
 trader.run_all()
